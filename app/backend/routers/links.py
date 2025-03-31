@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, Response, status, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional, List
 
-from app.database.database import get_db
-from app.models.models import User
-from app.schemas.schemas import LinkCreate, Link as LinkSchema, LinkStats
-from app.services.deps import get_current_user
-from app.services.link_service import LinkService
+from app.backend.database.database import get_db
+from app.backend.models.models import User
+from app.backend.schemas.schemas import LinkCreate, Link as LinkSchema, LinkStats
+from app.backend.services.deps import get_current_user
+from app.backend.services.link_service import LinkService
 
 router = APIRouter(tags=["links"])
 

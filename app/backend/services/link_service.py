@@ -6,7 +6,8 @@ import secrets
 import string
 from zoneinfo import ZoneInfo
 
-from app.models.models import Link, User
+from app.backend.models.models import Link, User
+
 
 class LinkService:
     def __init__(self, db: Session):
@@ -116,4 +117,4 @@ class LinkService:
     def search_links(self, original_url: str) -> List[Link]:
         return self.db.query(Link).filter(
             Link.original_url.contains(original_url)
-        ).all() 
+        ).all()
