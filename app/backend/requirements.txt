@@ -7,6 +7,6 @@ passlib
 python-multipart
 pydantic
 python-dotenv
-bcrypt
+bcrypt==4.0.1
 flake8
 email-validator
