@@ -282,18 +282,16 @@ def _display_link_content(link_data: dict, short_url: str):
 
 
 def get_user_links() -> list:
-    """Получение списка ссылок текущего пользователя"""
     try:
         if not st.session_state.is_authenticated:
             raise Exception("Пользователь не авторизован")
-            
+
         headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
-        
         response = requests.get(
             f"{API_BASE_URL}/links/user",
             headers=headers
         )
-        
+
         if response.status_code == 200:
             return response.json()
         else:
@@ -514,7 +512,7 @@ else:
                 st.success(f"Найдено ссылок: {len(user_links)}")
 
                 for idx, link in enumerate(user_links, 1):
-                    with st.expander(f"#{idx}: {link['short_code']} - {link['original_url'][:30]}..."):
+                    with st.expander(f"{idx} - {link['original_url']}"):
                         display_link_details(link, use_expander=False)
 
         except Exception as e:
