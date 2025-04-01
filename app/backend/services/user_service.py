@@ -4,9 +4,10 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from jose import JWTError, jwt
 
-from app.models.models import User
-from app.services.security import verify_password, get_password_hash
-from app.schemas.schemas import UserCreate
+from app.backend.models.models import User
+from app.backend.services.security import verify_password, get_password_hash
+from app.backend.schemas.schemas import UserCreate
+
 
 class UserService:
     def __init__(self, db: Session):
@@ -50,4 +51,4 @@ class UserService:
         return user
 
     def get_user_by_id(self, user_id: int) -> Optional[User]:
-        return self.db.query(User).filter(User.id == user_id).first() 
+        return self.db.query(User).filter(User.id == user_id).first()

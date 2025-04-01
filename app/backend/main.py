@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, links
+from app.backend.routers import auth, links
 
 app = FastAPI(
     title="URL Shortener",
@@ -19,6 +19,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(links.router)
 
+
 @app.get("/")
 async def root():
-    return {"message": "Welcome to URL Shortener API"} 
+    return {"message": "Welcome to URL Shortener API"}

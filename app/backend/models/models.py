@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, func
 from sqlalchemy.orm import relationship
-from app.database.database import Base
+from app.backend.database.database import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -26,4 +27,4 @@ class Link(Base):
     clicks = Column(Integer, default=0)
     last_accessed_at = Column(DateTime(timezone=True))
 
-    user = relationship("User", back_populates="links") 
+    user = relationship("User", back_populates="links")

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
@@ -6,7 +6,8 @@ import secrets
 import string
 from zoneinfo import ZoneInfo
 
-from app.models.models import Link, User
+from app.backend.models.models import Link, User
+
 
 class LinkService:
     def __init__(self, db: Session):
@@ -24,7 +25,6 @@ class LinkService:
         custom_alias: Optional[str] = None,
         expires_at: Optional[datetime] = None
     ) -> Link:
-        # Validate expiration date
         if expires_at:
             expires_at = expires_at.replace(tzinfo=ZoneInfo("UTC"))
             if expires_at < datetime.now(ZoneInfo("UTC")):
@@ -32,6 +32,9 @@ class LinkService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Expiration date must be in the future"
                 )
+        else:
+            # if user is not authenticated, set expires_at to 1 day
+            expires_at = datetime.now(ZoneInfo("UTC")) + timedelta(days=1)
 
         if custom_alias:
             if self.db.query(Link).filter(Link.short_code == custom_alias).first():
@@ -81,8 +84,14 @@ class LinkService:
             )
 
     def delete_link(self, short_code: str, current_user: User) -> None:
+        if current_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required to delete links"
+            )
+
         link = self.get_link_by_code(short_code)
-        
+
         if link.user_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -97,10 +106,17 @@ class LinkService:
         short_code: str,
         current_user: User,
         original_url: str,
-        expires_at: Optional[datetime] = None
+        expires_at: Optional[datetime] = None,
+        custom_alias: Optional[str] = None
     ) -> Link:
+        if current_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required to update links"
+            )
+
         link = self.get_link_by_code(short_code)
-        
+
         if link.user_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -109,6 +125,15 @@ class LinkService:
 
         link.original_url = original_url
         link.expires_at = expires_at.replace(tzinfo=ZoneInfo("UTC")) if expires_at else None
+
+        if custom_alias and custom_alias != short_code:
+            if self.db.query(Link).filter(Link.short_code == custom_alias).first():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Custom alias already in use"
+                )
+            link.short_code = custom_alias
+
         self.db.commit()
         self.db.refresh(link)
         return link
@@ -116,4 +141,14 @@ class LinkService:
     def search_links(self, original_url: str) -> List[Link]:
         return self.db.query(Link).filter(
             Link.original_url.contains(original_url)
-        ).all() 
+        ).all()
+
+    def get_user_links(self, current_user: User) -> List[Link]:
+        if current_user is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication required to access user links"
+            )
+        return self.db.query(Link).filter(
+            Link.user_id == current_user.id
+        ).all()

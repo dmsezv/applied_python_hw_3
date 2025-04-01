@@ -2,13 +2,16 @@ from pydantic import BaseModel, EmailStr, HttpUrl
 from typing import Optional
 from datetime import datetime
 
+
 # User schemas
 class UserBase(BaseModel):
     username: str
     email: EmailStr
 
+
 class UserCreate(UserBase):
     password: str
+
 
 class User(UserBase):
     id: int
@@ -17,14 +20,17 @@ class User(UserBase):
     class Config:
         from_attributes = True
 
+
 # Link schemas
 class LinkBase(BaseModel):
     original_url: HttpUrl
     custom_alias: Optional[str] = None
     expires_at: Optional[datetime] = None
 
+
 class LinkCreate(LinkBase):
     pass
+
 
 class Link(LinkBase):
     id: int
@@ -36,6 +42,7 @@ class Link(LinkBase):
 
     class Config:
         from_attributes = True
+
 
 # Link statistics schema
 class LinkStats(BaseModel):
