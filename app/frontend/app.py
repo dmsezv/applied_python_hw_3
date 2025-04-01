@@ -240,45 +240,52 @@ def _display_link_content(link_data: dict, short_url: str, show_controls=False):
                     key=f"edit_alias_{link_data['short_code']}"
                 )
 
-                include_expiry = st.checkbox(
-                    "Установить срок действия",
-                    key=f"edit_include_expiry_{link_data['short_code']}"
+                current_expiry_date = None
+                default_expiry_days = 30
+                
+                if link_data.get('expires_at'):
+                    try:
+                        expiry_datetime = datetime.fromisoformat(link_data['expires_at'].replace('Z', '+00:00'))
+                        delta_days = (expiry_datetime.date() - datetime.now().date()).days
+                        if delta_days > 0:
+                            default_expiry_days = delta_days
+                            current_expiry_date = expiry_datetime.date()
+                    except (ValueError, TypeError):
+                        pass
+                
+                if not current_expiry_date:
+                    current_expiry_date = datetime.now().date() + timedelta(days=default_expiry_days)
+                
+                expiry_date = st.date_input(
+                    "Срок действия ссылки",
+                    min_value=datetime.now().date(),
+                    value=current_expiry_date,
+                    help="После этой даты ссылка станет недействительной",
+                    key=f"edit_expiry_date_{link_data['short_code']}"
                 )
 
-                expiry_days = None
-                if include_expiry:
-                    expiry_days = st.number_input(
-                        "Срок действия (дни)", 
-                        min_value=1, 
-                        max_value=365, 
-                        value=30,
-                        key=f"edit_expiry_{link_data['short_code']}"
-                    )
-                
                 col1, col2 = st.columns(2)
                 with col1:
                     submit = st.form_submit_button("Сохранить")
                 with col2:
                     cancel = st.form_submit_button("Отмена")
-                
+
                 if cancel:
                     st.session_state.pop(f"editing_{link_data['short_code']}", None)
                     st.rerun()
-                
+
                 if submit:
                     try:
-                        # Подготовка данных для обновления
-                        expires_at = None
-                        if include_expiry and expiry_days:
-                            expires_at = (datetime.now() + timedelta(days=expiry_days)).isoformat()
-                            
+                        current_time = datetime.now().time()
+                        expires_at = datetime.combine(expiry_date, current_time).isoformat()
+
                         update_link(
                             link_data['short_code'],
                             original_url=new_original_url,
                             custom_alias=new_custom_alias if new_custom_alias else None,
                             expires_at=expires_at
                         )
-                        
+
                         st.success("Ссылка успешно обновлена!")
                         st.session_state.pop(f"editing_{link_data['short_code']}", None)
                         st.rerun()
