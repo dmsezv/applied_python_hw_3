@@ -17,34 +17,38 @@
 - PostgreSQL
 - SQLAlchemy
 - JWT для авторизации
+- Streamlit (фронтенд)
+- Docker и Docker Compose для развертывания
 
-## Установка и запуск
+## Демонстрация проекта
 
-1. Клонировать репозиторий
+Я добавил фронт на Streamlit для удобной и красивой демонстрации функционала.
 
-```bash
-git clone [repository-url]
-```
+### Функционал незарегистрированного пользователя
 
-2. Создать виртуальное окружение и установить зависимости
+![Функционал без авторизации](screens/unauth_funcs.gif)
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+### Регистрация и авторизация
 
-3. Создать базу данных PostgreSQL
+![Регистрация](screens/registration.gif)
 
-```bash
-createdb url_shortener
-```
+### Создание ссылок
 
-4. Запустить сервер
+![Создание ссылок](screens/create_link.gif)
 
-```bash
-uvicorn app.main:app --reload
-```
+### Обновление ссылок
+
+![Обновление ссылок](screens/update_link.gif)
+
+### Удаление ссылок
+
+![Удаление ссылок](screens/delete_link.gif)
+
+## Доступ к приложениям:
+
+- Frontend (Streamlit): http://localhost:8501
+- Backend API: http://localhost:8000
+- API документация: http://localhost:8000/docs
 
 ## API Endpoints
 
