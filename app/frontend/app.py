@@ -178,6 +178,14 @@ def search_links(original_url: str) -> list:
         raise e
 
 
+def format_datetime(datetime_str: str) -> str:
+    try:
+        dt = datetime.fromisoformat(datetime_str.replace('Z', '+00:00'))
+        return dt.strftime("%d.%m.%Y %H:%M")
+    except Exception:
+        return datetime_str
+
+
 def display_link_details(link_data: dict, use_expander=True):
     short_url = f"{API_BASE_URL}/{link_data['short_code']}"
 
@@ -193,12 +201,11 @@ def _display_link_content(link_data: dict, short_url: str):
     st.write(f"**Короткая ссылка**: [{short_url}]({short_url})")
     st.write(f"**Оригинальный URL**: {link_data['original_url']}")
     st.write(f"**Короткий код**: {link_data['short_code']}")
-    st.write(f"**Создана**: {link_data['created_at']}")
+    st.write(f"**Создана**: {format_datetime(link_data['created_at'])}")
     if link_data.get('expires_at'):
-        st.write(f"**Истекает**: {link_data['expires_at']}")
+        st.write(f"**Истекает**: {format_datetime(link_data['expires_at'])}")
     st.write(f"**Количество переходов**: {link_data['clicks']}")
-    
-    # Проверка владельца для авторизованных пользователей
+
     if st.session_state.is_authenticated and link_data.get('user_id') == st.session_state.get('user_id'):
         col1, col2 = st.columns(2)
         with col1:
@@ -234,7 +241,6 @@ def _display_link_content(link_data: dict, short_url: str):
                     key=f"edit_alias_{link_data['short_code']}"
                 )
                 
-                # Опция для установки срока действия
                 include_expiry = st.checkbox(
                     "Установить срок действия", 
                     key=f"edit_include_expiry_{link_data['short_code']}"
@@ -372,69 +378,6 @@ def update_link(short_code: str, original_url: str = None, custom_alias: str = N
         raise e
 
 
-st.title("Сервис сокращения ссылок")
-
-if not st.session_state.is_authenticated:
-    st.info("""
-    ⚠️ Вы не авторизованы.
-
-    Созданные ссылки будут действительны только 1 день.
-
-    Зарегистрируйтесь, чтобы получить дополнительные возможности:
-    - Создавать ссылки с неограниченным сроком действия
-    - Управлять своими ссылками (редактировать, удалять)
-    - Просматривать статистику переходов
-    """)
-
-link_result = None
-
-with st.form("create_link_form"):
-    original_url = st.text_input(
-        "Введите длинную ссылку",
-        help="Если протокол (http:// или https://) не указан, будет автоматически добавлен https://"
-    )
-
-    if st.session_state.is_authenticated:
-        custom_alias = st.text_input(
-            "Желаемый короткий код (необязательно)",
-            help="Если не указан, будет сгенерирован автоматически"
-        )
-
-        expires_at = st.date_input(
-            "Дата истечения (необязательно)",
-            min_value=datetime.now().date(),
-            value=datetime.now().date() + timedelta(days=10),
-            help="После этой даты ссылка станет недействительной"
-        )
-    else:
-        custom_alias = None
-        expires_at = None
-
-    submit_button = st.form_submit_button("Создать короткую ссылку")
-
-    if submit_button:
-        if not original_url:
-            st.error("Введите URL для сокращения")
-        else:
-            try:
-                link_result = create_short_link(original_url, custom_alias, expires_at)
-                if link_result:
-                    st.success("Ссылка успешно создана!")
-            except Exception as e:
-                st.error(f"Не удалось создать короткую ссылку: {str(e)}")
-
-if link_result:
-    short_url = f"{API_BASE_URL}/{link_result['short_code']}"
-    col1, col2 = st.columns([3, 1])
-    with col1:
-        st.code(short_url)
-    with col2:
-        js_code = f"<script>navigator.clipboard.writeText('{short_url}');</script>"
-        st.button("Копировать", on_click=lambda: st.write(js_code, unsafe_allow_html=True))
-    display_link_details(link_result)
-
-st.markdown("---")
-
 with st.sidebar:
     st.title("👤 Аккаунт")
 
@@ -473,7 +416,19 @@ with st.sidebar:
             logout()
 
 
+st.title("Сервис сокращения ссылок")
+
 if not st.session_state.is_authenticated:
+    st.info("""
+    ⚠️ Вы не авторизованы.
+
+    Созданные ссылки будут действительны только 1 день.
+
+    Зарегистрируйтесь, чтобы получить дополнительные возможности:
+    - Создавать ссылки с неограниченным сроком действия
+    - Управлять своими ссылками (редактировать, удалять)
+    """)
+
     link_result = None
 
     with st.form("shorten_form_guest"):
@@ -529,7 +484,12 @@ else:
         with st.form("shorten_form_auth"):
             original_url = st.text_input("Введите длинную ссылку")
             custom_alias = st.text_input("Пользовательский алиас (необязательно)")
-            expires_at = st.date_input("Срок действия ссылки (необязательно)")
+            expires_at = st.date_input(
+                "Срок действия ссылки (необязательно)",
+                min_value=datetime.now().date(),
+                value=datetime.now().date() + timedelta(days=10),
+                help="После этой даты ссылка станет недействительной"
+            )
 
             submitted = st.form_submit_button("Сократить ссылку")
 
