@@ -70,7 +70,8 @@ def update_link(
         short_code=short_code,
         current_user=current_user,
         original_url=str(link.original_url),
-        expires_at=link.expires_at
+        expires_at=link.expires_at,
+        custom_alias=link.custom_alias
     )
 
 

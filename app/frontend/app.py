@@ -157,6 +157,8 @@ def search_links(original_url: str) -> list:
         if st.session_state.is_authenticated:
             headers["Authorization"] = f"Bearer {st.session_state.access_token}"
 
+        original_url = ensure_url_protocol(original_url)
+        
         response = requests.get(
             f"{API_BASE_URL}/search",
             params={"original_url": original_url},
@@ -207,18 +209,16 @@ def _display_link_content(link_data: dict, short_url: str, show_controls=False):
     st.write(f"**Количество переходов**: {link_data['clicks']}")
 
     if show_controls and st.session_state.is_authenticated:
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Удалить", key=f"delete_{link_data['short_code']}"):
-                try:
-                    if delete_link(link_data['short_code']):
-                        st.success(f"Ссылка {link_data['short_code']} успешно удалена")
-                        st.rerun()
-                except Exception as e:
-                    st.error(f"Ошибка при удалении: {str(e)}")
-        with col2:
-            if st.button("Редактировать", key=f"edit_{link_data['short_code']}"):
-                st.session_state[f"editing_{link_data['short_code']}"] = True
+        if st.button("Редактировать", key=f"edit_{link_data['short_code']}"):
+            st.session_state[f"editing_{link_data['short_code']}"] = True
+
+        if st.button("Удалить", key=f"delete_{link_data['short_code']}"):
+            try:
+                if delete_link(link_data['short_code']):
+                    st.success(f"Ссылка {link_data['short_code']} успешно удалена")
+                    st.rerun()
+            except Exception as e:
+                st.error(f"Ошибка при удалении: {str(e)}")
 
         if st.session_state.get(f"editing_{link_data['short_code']}", False):
             st.markdown("---")
@@ -264,11 +264,8 @@ def _display_link_content(link_data: dict, short_url: str, show_controls=False):
                     key=f"edit_expiry_date_{link_data['short_code']}"
                 )
 
-                col1, col2 = st.columns(2)
-                with col1:
-                    submit = st.form_submit_button("Сохранить")
-                with col2:
-                    cancel = st.form_submit_button("Отмена")
+                submit = st.form_submit_button("Сохранить")
+                cancel = st.form_submit_button("Отмена")
 
                 if cancel:
                     st.session_state.pop(f"editing_{link_data['short_code']}", None)
@@ -279,10 +276,16 @@ def _display_link_content(link_data: dict, short_url: str, show_controls=False):
                         current_time = datetime.now().time()
                         expires_at = datetime.combine(expiry_date, current_time).isoformat()
 
+                        # Проверяем, что новый короткий код не пустой
+                        custom_alias_to_send = None
+                        if new_custom_alias and new_custom_alias.strip():
+                            custom_alias_to_send = new_custom_alias.strip()
+                            st.info(f"Будет установлен новый короткий код: {custom_alias_to_send}")
+
                         update_link(
                             link_data['short_code'],
                             original_url=new_original_url,
-                            custom_alias=new_custom_alias if new_custom_alias else None,
+                            custom_alias=custom_alias_to_send,
                             expires_at=expires_at
                         )
 
@@ -306,6 +309,11 @@ def get_user_links() -> list:
 
         if response.status_code == 200:
             return response.json()
+        elif response.status_code == 401:
+            # Если получена ошибка авторизации, выходим из системы
+            st.error("Сессия истекла. Пожалуйста, войдите снова.")
+            logout()
+            return []
         else:
             error_msg = "Ошибка при получении списка ссылок"
             try:
@@ -334,6 +342,11 @@ def delete_link(short_code: str) -> bool:
 
         if response.status_code in [200, 204]:
             return True
+        elif response.status_code == 401:
+            # Если получена ошибка авторизации, выходим из системы
+            st.error("Сессия истекла. Пожалуйста, войдите снова.")
+            logout()
+            return False
         else:
             error_msg = "Ошибка при удалении ссылки"
             try:
@@ -348,13 +361,12 @@ def delete_link(short_code: str) -> bool:
 
 
 def update_link(short_code: str, original_url: str = None, custom_alias: str = None, expires_at=None) -> dict:
-    """Обновление ссылки по короткому коду"""
     try:
         if not st.session_state.is_authenticated:
             raise Exception("Пользователь не авторизован")
-            
+
         headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
-        
+
         data = {}
         if original_url:
             data["original_url"] = ensure_url_protocol(original_url)
@@ -362,15 +374,21 @@ def update_link(short_code: str, original_url: str = None, custom_alias: str = N
             data["custom_alias"] = custom_alias
         if expires_at:
             data["expires_at"] = expires_at
-            
+
         response = requests.put(
             f"{API_BASE_URL}/links/{short_code}",
             headers=headers,
             json=data
         )
-        
+
         if response.status_code == 200:
-            return response.json()
+            result = response.json()
+            return result
+        elif response.status_code == 401:
+            # Если получена ошибка авторизации, выходим из системы
+            st.error("Сессия истекла. Пожалуйста, войдите снова.")
+            logout()
+            return {}
         else:
             error_msg = "Ошибка при обновлении ссылки"
             try:
