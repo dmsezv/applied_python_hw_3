@@ -372,6 +372,69 @@ def update_link(short_code: str, original_url: str = None, custom_alias: str = N
         raise e
 
 
+st.title("Сервис сокращения ссылок")
+
+if not st.session_state.is_authenticated:
+    st.info("""
+    ⚠️ Вы не авторизованы.
+
+    Созданные ссылки будут действительны только 1 день.
+
+    Зарегистрируйтесь, чтобы получить дополнительные возможности:
+    - Создавать ссылки с неограниченным сроком действия
+    - Управлять своими ссылками (редактировать, удалять)
+    - Просматривать статистику переходов
+    """)
+
+link_result = None
+
+with st.form("create_link_form"):
+    original_url = st.text_input(
+        "Введите длинную ссылку",
+        help="Если протокол (http:// или https://) не указан, будет автоматически добавлен https://"
+    )
+
+    if st.session_state.is_authenticated:
+        custom_alias = st.text_input(
+            "Желаемый короткий код (необязательно)",
+            help="Если не указан, будет сгенерирован автоматически"
+        )
+
+        expires_at = st.date_input(
+            "Дата истечения (необязательно)",
+            min_value=datetime.now().date(),
+            value=datetime.now().date() + timedelta(days=10),
+            help="После этой даты ссылка станет недействительной"
+        )
+    else:
+        custom_alias = None
+        expires_at = None
+
+    submit_button = st.form_submit_button("Создать короткую ссылку")
+
+    if submit_button:
+        if not original_url:
+            st.error("Введите URL для сокращения")
+        else:
+            try:
+                link_result = create_short_link(original_url, custom_alias, expires_at)
+                if link_result:
+                    st.success("Ссылка успешно создана!")
+            except Exception as e:
+                st.error(f"Не удалось создать короткую ссылку: {str(e)}")
+
+if link_result:
+    short_url = f"{API_BASE_URL}/{link_result['short_code']}"
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        st.code(short_url)
+    with col2:
+        js_code = f"<script>navigator.clipboard.writeText('{short_url}');</script>"
+        st.button("Копировать", on_click=lambda: st.write(js_code, unsafe_allow_html=True))
+    display_link_details(link_result)
+
+st.markdown("---")
+
 with st.sidebar:
     st.title("👤 Аккаунт")
 
@@ -408,9 +471,6 @@ with st.sidebar:
         st.write(f"Здравствуйте, {st.session_state.username}.")
         if st.button("Выйти"):
             logout()
-
-
-st.title("Сервис сокращения ссылок")
 
 
 if not st.session_state.is_authenticated:

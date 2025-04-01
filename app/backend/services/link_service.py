@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
@@ -32,6 +32,9 @@ class LinkService:
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Expiration date must be in the future"
                 )
+        else:
+            # if user is not authenticated, set expires_at to 1 day
+            expires_at = datetime.now(ZoneInfo("UTC")) + timedelta(days=1)
 
         if custom_alias:
             if self.db.query(Link).filter(Link.short_code == custom_alias).first():
