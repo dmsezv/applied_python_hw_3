@@ -32,6 +32,15 @@ def search_links(original_url: str, db: Session = Depends(get_db)):
     return link_service.search_links(original_url)
 
 
+@router.get("/links/user", response_model=List[LinkSchema])
+def get_user_links(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    link_service = LinkService(db)
+    return link_service.get_user_links(current_user)
+
+
 @router.get("/links/{short_code}", response_model=LinkSchema)
 def get_link_info(short_code: str, db: Session = Depends(get_db)):
     link_service = LinkService(db)
@@ -73,13 +82,12 @@ def get_link_stats(short_code: str, db: Session = Depends(get_db)):
 
 @router.get("/{short_code}", response_class=Response)
 def redirect_to_url(short_code: str, db: Session = Depends(get_db)):
-    """Redirect to original URL."""
     try:
         link_service = LinkService(db)
         link = link_service.get_link_by_code(short_code)
         link_service.check_link_expiration(link)
         link_service.update_link_stats(link)
-        
+
         return Response(
             status_code=status.HTTP_307_TEMPORARY_REDIRECT,
             headers={"Location": link.original_url}
@@ -90,4 +98,4 @@ def redirect_to_url(short_code: str, db: Session = Depends(get_db)):
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Short link not found"
             )
-        raise e 
+        raise e

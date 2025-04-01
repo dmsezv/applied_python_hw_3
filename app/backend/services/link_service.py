@@ -25,7 +25,6 @@ class LinkService:
         custom_alias: Optional[str] = None,
         expires_at: Optional[datetime] = None
     ) -> Link:
-        # Validate expiration date
         if expires_at:
             expires_at = expires_at.replace(tzinfo=ZoneInfo("UTC"))
             if expires_at < datetime.now(ZoneInfo("UTC")):
@@ -83,7 +82,7 @@ class LinkService:
 
     def delete_link(self, short_code: str, current_user: User) -> None:
         link = self.get_link_by_code(short_code)
-        
+
         if link.user_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -117,4 +116,9 @@ class LinkService:
     def search_links(self, original_url: str) -> List[Link]:
         return self.db.query(Link).filter(
             Link.original_url.contains(original_url)
+        ).all()
+
+    def get_user_links(self, current_user: User) -> List[Link]:
+        return self.db.query(Link).filter(
+            Link.user_id == current_user.id
         ).all()
