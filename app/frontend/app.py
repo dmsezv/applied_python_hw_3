@@ -186,17 +186,17 @@ def format_datetime(datetime_str: str) -> str:
         return datetime_str
 
 
-def display_link_details(link_data: dict, use_expander=True):
+def display_link_details(link_data: dict, use_expander=True, show_controls=False):
     short_url = f"{API_BASE_URL}/{link_data['short_code']}"
 
     if use_expander:
         with st.expander("Детали ссылки"):
-            _display_link_content(link_data, short_url)
+            _display_link_content(link_data, short_url, show_controls)
     else:
-        _display_link_content(link_data, short_url)
+        _display_link_content(link_data, short_url, show_controls)
 
 
-def _display_link_content(link_data: dict, short_url: str):
+def _display_link_content(link_data: dict, short_url: str, show_controls=False):
     """Внутренняя функция для отображения содержимого ссылки"""
     st.write(f"**Короткая ссылка**: [{short_url}]({short_url})")
     st.write(f"**Оригинальный URL**: {link_data['original_url']}")
@@ -206,7 +206,7 @@ def _display_link_content(link_data: dict, short_url: str):
         st.write(f"**Истекает**: {format_datetime(link_data['expires_at'])}")
     st.write(f"**Количество переходов**: {link_data['clicks']}")
 
-    if st.session_state.is_authenticated and link_data.get('user_id') == st.session_state.get('user_id'):
+    if show_controls and st.session_state.is_authenticated:
         col1, col2 = st.columns(2)
         with col1:
             if st.button("Удалить", key=f"delete_{link_data['short_code']}"):
@@ -219,12 +219,11 @@ def _display_link_content(link_data: dict, short_url: str):
         with col2:
             if st.button("Редактировать", key=f"edit_{link_data['short_code']}"):
                 st.session_state[f"editing_{link_data['short_code']}"] = True
-            
-        # Форма редактирования ссылки
+
         if st.session_state.get(f"editing_{link_data['short_code']}", False):
             st.markdown("---")
             st.subheader("Редактирование ссылки")
-            
+
             with st.form(key=f"edit_form_{link_data['short_code']}"):
                 new_original_url = st.text_input(
                     "Новый оригинальный URL",
@@ -233,19 +232,19 @@ def _display_link_content(link_data: dict, short_url: str):
                     key=f"edit_url_{link_data['short_code']}"
                 )
                 st.caption("URL должен быть валидным. Если протокол не указан, будет добавлен https://")
-                
+
                 new_custom_alias = st.text_input(
                     "Новый короткий код (оставьте пустым, чтобы оставить текущий)",
                     value="",
                     placeholder=f"Текущий: {link_data['short_code']}",
                     key=f"edit_alias_{link_data['short_code']}"
                 )
-                
+
                 include_expiry = st.checkbox(
-                    "Установить срок действия", 
+                    "Установить срок действия",
                     key=f"edit_include_expiry_{link_data['short_code']}"
                 )
-                
+
                 expiry_days = None
                 if include_expiry:
                     expiry_days = st.number_input(
@@ -318,15 +317,15 @@ def delete_link(short_code: str) -> bool:
     try:
         if not st.session_state.is_authenticated:
             raise Exception("Пользователь не авторизован")
-            
+
         headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
-        
+
         response = requests.delete(
             f"{API_BASE_URL}/links/{short_code}",
             headers=headers
         )
-        
-        if response.status_code == 204:
+
+        if response.status_code in [200, 204]:
             return True
         else:
             error_msg = "Ошибка при удалении ссылки"
@@ -533,7 +532,7 @@ else:
 
                 for idx, link in enumerate(user_links, 1):
                     with st.expander(f"{idx} - {link['original_url']}"):
-                        display_link_details(link, use_expander=False)
+                        display_link_details(link, use_expander=False, show_controls=True)
 
         except Exception as e:
             st.error(f"Ошибка при загрузке ссылок: {str(e)}")
