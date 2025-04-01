@@ -198,14 +198,29 @@ def display_link_details(link_data: dict, use_expander=True, show_controls=False
         _display_link_content(link_data, short_url, show_controls)
 
 
+def _is_expired(link_data: dict) -> bool:
+    if link_data.get('expires_at'):
+        try:
+            expiry_datetime = datetime.fromisoformat(link_data['expires_at'].replace('Z', '+00:00'))
+            now_datetime = datetime.now().replace(tzinfo=expiry_datetime.tzinfo)
+            return expiry_datetime < now_datetime
+        except Exception as e:
+            print(f"Error: {e}")
+    return False
+
+
 def _display_link_content(link_data: dict, short_url: str, show_controls=False):
-    """Внутренняя функция для отображения содержимого ссылки"""
+    is_expired = _is_expired(link_data)
+
     st.write(f"**Короткая ссылка**: [{short_url}]({short_url})")
     st.write(f"**Оригинальный URL**: {link_data['original_url']}")
     st.write(f"**Короткий код**: {link_data['short_code']}")
     st.write(f"**Создана**: {format_datetime(link_data['created_at'])}")
     if link_data.get('expires_at'):
-        st.write(f"**Истекает**: {format_datetime(link_data['expires_at'])}")
+        if is_expired:
+            st.write(f"**⚠️ Истекла**: {format_datetime(link_data['expires_at'])}")
+        else:
+            st.write(f"**Истекает**: {format_datetime(link_data['expires_at'])}")
     st.write(f"**Количество переходов**: {link_data['clicks']}")
 
     if show_controls and st.session_state.is_authenticated:
@@ -242,7 +257,7 @@ def _display_link_content(link_data: dict, short_url: str, show_controls=False):
 
                 current_expiry_date = None
                 default_expiry_days = 30
-                
+
                 if link_data.get('expires_at'):
                     try:
                         expiry_datetime = datetime.fromisoformat(link_data['expires_at'].replace('Z', '+00:00'))
@@ -252,10 +267,10 @@ def _display_link_content(link_data: dict, short_url: str, show_controls=False):
                             current_expiry_date = expiry_datetime.date()
                     except (ValueError, TypeError):
                         pass
-                
+
                 if not current_expiry_date:
                     current_expiry_date = datetime.now().date() + timedelta(days=default_expiry_days)
-                
+
                 expiry_date = st.date_input(
                     "Срок действия ссылки",
                     min_value=datetime.now().date(),
@@ -276,7 +291,6 @@ def _display_link_content(link_data: dict, short_url: str, show_controls=False):
                         current_time = datetime.now().time()
                         expires_at = datetime.combine(expiry_date, current_time).isoformat()
 
-                        # Проверяем, что новый короткий код не пустой
                         custom_alias_to_send = None
                         if new_custom_alias and new_custom_alias.strip():
                             custom_alias_to_send = new_custom_alias.strip()
@@ -310,7 +324,6 @@ def get_user_links() -> list:
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 401:
-            # Если получена ошибка авторизации, выходим из системы
             st.error("Сессия истекла. Пожалуйста, войдите снова.")
             logout()
             return []
@@ -328,7 +341,6 @@ def get_user_links() -> list:
 
 
 def delete_link(short_code: str) -> bool:
-    """Удаление ссылки по короткому коду"""
     try:
         if not st.session_state.is_authenticated:
             raise Exception("Пользователь не авторизован")
@@ -343,7 +355,6 @@ def delete_link(short_code: str) -> bool:
         if response.status_code in [200, 204]:
             return True
         elif response.status_code == 401:
-            # Если получена ошибка авторизации, выходим из системы
             st.error("Сессия истекла. Пожалуйста, войдите снова.")
             logout()
             return False
@@ -385,7 +396,6 @@ def update_link(short_code: str, original_url: str = None, custom_alias: str = N
             result = response.json()
             return result
         elif response.status_code == 401:
-            # Если получена ошибка авторизации, выходим из системы
             st.error("Сессия истекла. Пожалуйста, войдите снова.")
             logout()
             return {}
@@ -494,7 +504,8 @@ if not st.session_state.is_authenticated:
                 else:
                     st.success(f"Найдено ссылок: {len(results)}")
                     for idx, link in enumerate(results, 1):
-                        with st.expander(f"Результат {idx}: {link['short_code']}"):
+                        is_expired = _is_expired(link)
+                        with st.expander(f"{'⚠️' if is_expired else ''}{idx} - {link['short_code']}"):
                             display_link_details(link, use_expander=False)
             except Exception as e:
                 st.error(f"Ошибка при поиске: {str(e)}")
@@ -556,7 +567,8 @@ else:
                 st.success(f"Найдено ссылок: {len(user_links)}")
 
                 for idx, link in enumerate(user_links, 1):
-                    with st.expander(f"{idx} - {link['original_url']}"):
+                    is_expired = _is_expired(link)
+                    with st.expander(f"{'⚠️' if is_expired else ''}{idx} - {link['original_url']}"):
                         display_link_details(link, use_expander=False, show_controls=True)
 
         except Exception as e:
@@ -577,7 +589,8 @@ else:
                     else:
                         st.success(f"Найдено ссылок: {len(results)}")
                         for idx, link in enumerate(results, 1):
-                            with st.expander(f"Результат {idx}: {link['short_code']}"):
+                            is_expired = _is_expired(link)
+                            with st.expander(f"{'⚠️' if is_expired else ''}{idx} - {link['original_url']}"):
                                 display_link_details(link, use_expander=False)
                 except Exception as e:
                     st.error(f"Ошибка при поиске: {str(e)}")
