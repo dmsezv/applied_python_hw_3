@@ -16,8 +16,6 @@ load_dotenv()
 
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
-API_PREFIX = os.getenv("API_PREFIX")
-
 
 @st.cache_resource(experimental_allow_widgets=True)
 def get_cookie_manager():
@@ -180,6 +178,36 @@ def search_links(original_url: str) -> list:
         raise e
 
 
+def display_link_details(link_data: dict, use_expander=True):
+    short_url = f"{API_BASE_URL}/{link_data['short_code']}"
+
+    if use_expander:
+        with st.expander("Детали ссылки"):
+            _display_link_content(link_data, short_url)
+    else:
+        _display_link_content(link_data, short_url)
+
+
+def _display_link_content(link_data: dict, short_url: str):
+    st.write(f"**Короткая ссылка**: [{short_url}]({short_url})")
+    st.write(f"**Оригинальный URL**: {link_data['original_url']}")
+    st.write(f"**Короткий код**: {link_data['short_code']}")
+    st.write(f"**Создана**: {link_data['created_at']}")
+    if link_data.get('expires_at'):
+        st.write(f"**Истекает**: {link_data['expires_at']}")
+    st.write(f"**Количество переходов**: {link_data['clicks']}")
+
+    # check is owner
+    if st.session_state.is_authenticated and link_data.get('user_id') == st.session_state.get('user_id'):
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Удалить", key=f"delete_{link_data['short_code']}"):
+                st.info("Функционал удаления будет добавлен позже")
+        with col2:
+            if st.button("Редактировать", key=f"edit_{link_data['short_code']}"):
+                st.info("Функционал редактирования будет добавлен позже")
+
+
 with st.sidebar:
     st.title("👤 Аккаунт")
 
@@ -246,14 +274,8 @@ if not st.session_state.is_authenticated:
         with col2:
             js_code = f"<script>navigator.clipboard.writeText('{short_url}');</script>"
             st.button("Копировать", on_click=lambda: st.write(js_code, unsafe_allow_html=True))
-        with st.expander("Детали ссылки"):
-            st.write(f"**Короткая ссылка**: [{short_url}]({short_url})")
-            st.write(f"**Оригинальный URL**: {link_result['original_url']}")
-            st.write(f"**Короткий код**: {link_result['short_code']}")
-            st.write(f"**Создана**: {link_result['created_at']}")
-            if link_result.get('expires_at'):
-                st.write(f"**Истекает**: {link_result['expires_at']}")
-            st.write(f"**Количество переходов**: {link_result['clicks']}")
+
+        display_link_details(link_result)
 
     st.markdown("---")
     st.subheader("Поиск ссылки")
@@ -270,11 +292,7 @@ if not st.session_state.is_authenticated:
                     st.success(f"Найдено ссылок: {len(results)}")
                     for idx, link in enumerate(results, 1):
                         with st.expander(f"Результат {idx}: {link['short_code']}"):
-                            short_url = f"{API_BASE_URL}/{link['short_code']}"
-                            st.write(f"**Короткая ссылка**: [{short_url}]({short_url})")
-                            st.write(f"**Оригинальный URL**: {link['original_url']}")
-                            st.write(f"**Создана**: {link['created_at']}")
-                            st.write(f"**Количество переходов**: {link['clicks']}")
+                            display_link_details(link, use_expander=False)
             except Exception as e:
                 st.error(f"Ошибка при поиске: {str(e)}")
 
@@ -316,15 +334,7 @@ else:
                 js_code = f"<script>navigator.clipboard.writeText('{short_url}');</script>"
                 st.button("Копировать", on_click=lambda: st.write(js_code, unsafe_allow_html=True))
 
-            with st.expander("Детали ссылки"):
-                short_url = f"{API_BASE_URL}/{auth_link_result['short_code']}"
-                st.write(f"**Короткая ссылка**: [{short_url}]({short_url})")
-                st.write(f"**Оригинальный URL**: {auth_link_result['original_url']}")
-                st.write(f"**Короткий код**: {auth_link_result['short_code']}")
-                st.write(f"**Создана**: {auth_link_result['created_at']}")
-                if auth_link_result.get('expires_at'):
-                    st.write(f"**Истекает**: {auth_link_result['expires_at']}")
-                st.write(f"**Количество переходов**: {auth_link_result['clicks']}")
+            display_link_details(auth_link_result)
 
     with tabs[1]:
         st.subheader("Мои ссылки")
@@ -345,19 +355,6 @@ else:
                         st.success(f"Найдено ссылок: {len(results)}")
                         for idx, link in enumerate(results, 1):
                             with st.expander(f"Результат {idx}: {link['short_code']}"):
-                                short_url = f"{API_BASE_URL}/{link['short_code']}"
-                                st.write(f"**Короткая ссылка**: [{short_url}]({short_url})")
-                                st.write(f"**Оригинальный URL**: {link['original_url']}")
-                                st.write(f"**Создана**: {link['created_at']}")
-                                st.write(f"**Количество переходов**: {link['clicks']}")
-                                
-                                if link.get('user_id') == st.session_state.get('user_id'):
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        if st.button("Удалить", key=f"delete_{link['short_code']}"):
-                                            st.info("Функционал удаления будет добавлен позже")
-                                    with col2:
-                                        if st.button("Редактировать", key=f"edit_{link['short_code']}"):
-                                            st.info("Функционал редактирования будет добавлен позже")
+                                display_link_details(link, use_expander=False)
                 except Exception as e:
                     st.error(f"Ошибка при поиске: {str(e)}")
